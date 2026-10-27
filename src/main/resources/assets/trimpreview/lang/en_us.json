@@ -1,0 +1,8 @@
+{
+  "screen.trimpreview.title": "Armor Trim Preview",
+  "gui.trimpreview.apply": "Apply",
+  "key.trimpreview.open": "Open Trim Preview",
+  "category.trimpreview": "Armor Trim Preview",
+  "message.trimpreview.no_armor": "Place a trimmable armor piece in the input slot.",
+  "message.trimpreview.missing": "Missing smithing template or trim material in your inventory."
+}
