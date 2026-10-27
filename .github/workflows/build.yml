@@ -35,5 +35,14 @@ jobs:
             if unzip -l "$j" 2>/dev/null | grep -q 'equipment/trim/TrimPattern.class'; then
               echo "== $j"
               javap -p -cp "$j" net.minecraft.world.item.equipment.trim.TrimPattern net.minecraft.world.item.equipment.trim.TrimMaterial
+              javap -p -cp "$j" net.minecraft.client.gui.screens.inventory.InventoryScreen net.minecraft.client.gui.GuiGraphicsExtractor | grep -i "entity\|item\|fill\|text"
+              javap -p -cp "$j" net.minecraft.world.entity.decoration.ArmorStand | grep -i "equip\|ArmorStand(\|setShow\|Arms"
+              javap -p -cp "$j" net.minecraft.client.gui.screens.inventory.AbstractContainerScreen | grep -i "extract\|render\|init"
+              javap -p -cp "$j" net.minecraft.client.gui.components.Button | grep -i "builder\|class"
+              javap -p -cp "$j" net.minecraft.world.item.equipment.trim.ArmorTrim | grep -i "ArmorTrim("
+              javap -p -cp "$j" net.minecraft.world.inventory.AbstractContainerMenu | grep -i "moveItemStackTo\|clearContainer\|broadcastChanges\|removed\|stillValid"
+              javap -p -cp "$j" net.minecraft.world.inventory.Slot | grep -i "mayPlace\|onTake\|setChanged\|set("
+              javap -p -cp "$j" net.minecraft.world.entity.player.Inventory | grep -i "countItem\|setChanged\|getContainerSize"
+              javap -p -cp "$j" net.minecraft.world.level.block.Blocks | grep -i smithing
             fi
           done

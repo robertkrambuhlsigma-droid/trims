@@ -65,9 +65,6 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
             player.sendSystemMessage(Component.translatable("message.trimpreview.no_armor"));
             return;
         }
-        if (!output.getItem(0).isEmpty()) {
-            return; // Previous result hasn't been taken yet.
-        }
 
         var registries = player.level().registryAccess();
         Holder<TrimPattern> pattern = registries.lookupOrThrow(Registries.TRIM_PATTERN)
@@ -95,8 +92,8 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
         ItemStack result = armor.copyWithCount(1);
         result.set(DataComponents.TRIM, new ArmorTrim(material, pattern));
 
-        output.setItem(0, result);
-        input.setItem(0, ItemStack.EMPTY);
+        // The trimmed armor replaces the input armor in place, so it looks like the armor changed.
+        input.setItem(0, result);
         inv.setChanged();
         broadcastChanges();
     }
