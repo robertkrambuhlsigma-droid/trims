@@ -86,22 +86,14 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
         Item templateItem = TrimItems.templateFor(patternId);
         Item ingredientItem = TrimItems.ingredientFor(materialId);
 
+        // No template or ingredient is needed or used up; the trim is free.
         var inv = player.getInventory();
-        if (inv.countItem(templateItem) < 1 || inv.countItem(ingredientItem) < 1) {
-            player.sendSystemMessage(Component.translatable("message.trimpreview.missing"));
-            return;
-        }
-
-        // Consume ingredients (survival rules).
-        consume(inv, templateItem);
-        consume(inv, ingredientItem);
 
         ItemStack result = armor.copyWithCount(1);
         result.set(DataComponents.TRIM, new ArmorTrim(material, pattern));
 
         // The trimmed armor replaces the input armor in place, so it looks like the armor changed.
         input.setItem(0, result);
-        inv.setChanged();
         broadcastChanges();
         player.sendSystemMessage(Component.literal("[Trim] Applied " + patternId.getPath()
                 + " with " + materialId.getPath() + "."));
