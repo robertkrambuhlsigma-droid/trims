@@ -1,52 +1,52 @@
 package com.example.trimpreview.menu;
 
 import com.example.trimpreview.TrimPreviewMod;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.RegistryEntry;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-// VERIFY: 1.21.2+ package. Older 1.21.x versions use net.minecraft.item.trim.*
-import net.minecraft.item.equipment.trim.ArmorTrim;
-import net.minecraft.item.equipment.trim.ArmorTrimMaterial;
-import net.minecraft.item.equipment.trim.ArmorTrimPattern;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.SimpleContainer;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.equipment.trim.ArmorTrim;
+import net.minecraft.world.item.equipment.trim.ArmorTrimMaterial;
+import net.minecraft.world.item.equipment.trim.ArmorTrimPattern;
 
-public class TrimPreviewMenu extends ScreenHandler {
+public class TrimPreviewMenu extends AbstractContainerMenu {
     public static final int ARMOR_SLOT = 0;
     public static final int OUTPUT_SLOT = 1;
 
-    private final SimpleInventory input = new SimpleInventory(1);
-    private final SimpleInventory output = new SimpleInventory(1);
+    private final SimpleContainer input = new SimpleContainer(1);
+    private final SimpleContainer output = new SimpleContainer(1);
 
-    public TrimPreviewMenu(int syncId, PlayerInventory playerInv) {
-        super(TrimPreviewMod.MENU_TYPE, syncId);
+    public TrimPreviewMenu(int containerId, Inventory playerInv) {
+        super(TrimPreviewMod.MENU_TYPE, containerId);
 
         // Slot 0: armor input. Only trimmable armor may be placed here.
         addSlot(new Slot(input, 0, 10, 18) {
             @Override
-            public boolean canInsert(ItemStack stack) {
-                return stack.isIn(ItemTags.TRIMMABLE_ARMOR);
+            public boolean mayPlace(ItemStack stack) {
+                return stack.is(ItemTags.TRIMMABLE_ARMOR);
             }
         });
 
         // Slot 1: output. Take-only.
         addSlot(new Slot(output, 0, 10, 60) {
             @Override
-            public boolean canInsert(ItemStack stack) {
+            public boolean mayPlace(ItemStack stack) {
                 return false;
             }
         });
 
-        // Player inventory: 9x3 main, then hotbar. Positions match the Screen layout.
+        // Player inventory: 9x3 main, then hotbar.
         for (int row = 0; row < 3; row++)
             for (int col = 0; col < 9; col++)
                 addSlot(new Slot(playerInv, col + row * 9 + 9, 43 + col * 18, 174 + row * 18));
@@ -58,78 +58,78 @@ public class TrimPreviewMenu extends ScreenHandler {
      * Server-authoritative apply. The client only sends IDs; everything else is validated here.
      * Consumes one smithing template and one material item from the player's inventory.
      */
-    public void applyTrim(ServerPlayerEntity player, Identifier patternId, Identifier materialId) {
-        ItemStack armor = input.getStack(0);
+    public void applyTrim(ServerPlayer player, Identifier patternId, Identifier materialId) {
+        ItemStack armor = input.getItem(0);
         if (armor.isEmpty()) {
-            player.sendMessage(Text.translatable("message.trimpreview.no_armor"), true);
+            player.displayClientMessage(Component.translatable("message.trimpreview.no_armor"), true);
             return;
         }
-        if (!output.getStack(0).isEmpty()) {
+        if (!output.getItem(0).isEmpty()) {
             return; // Previous result hasn't been taken yet.
         }
 
-        var registries = player.getWorld().getRegistryManager();
-        RegistryEntry<ArmorTrimPattern> pattern = registries.getOrThrow(RegistryKeys.TRIM_PATTERN)
-                .getEntry(patternId).orElse(null);
-        RegistryEntry<ArmorTrimMaterial> material = registries.getOrThrow(RegistryKeys.TRIM_MATERIAL)
-                .getEntry(materialId).orElse(null);
+        var registries = player.level().registryAccess();
+        Holder<ArmorTrimPattern> pattern = registries.lookupOrThrow(Registries.TRIM_PATTERN)
+                .get(ResourceKey.create(Registries.TRIM_PATTERN, patternId)).orElse(null);
+        Holder<ArmorTrimMaterial> material = registries.lookupOrThrow(Registries.TRIM_MATERIAL)
+                .get(ResourceKey.create(Registries.TRIM_MATERIAL, materialId)).orElse(null);
         if (pattern == null || material == null) {
             return; // Unknown or removed registry entry.
         }
 
         // Ingredient items come from the registry, so data pack entries work with no code changes.
-        Item templateItem = pattern.value().templateItem().value();     // VERIFY accessor name
-        Item ingredientItem = material.value().ingredient().value();    // VERIFY accessor name
+        Item templateItem = pattern.value().templateItem().value();
+        Item ingredientItem = material.value().ingredient().value();
 
         var inv = player.getInventory();
-        if (inv.count(templateItem) < 1 || inv.count(ingredientItem) < 1) {
-            player.sendMessage(Text.translatable("message.trimpreview.missing"), true);
+        if (inv.countItem(templateItem) < 1 || inv.countItem(ingredientItem) < 1) {
+            player.displayClientMessage(Component.translatable("message.trimpreview.missing"), true);
             return;
         }
 
-        // Consume ingredients (survival rules). Creative skip can be added here.
+        // Consume ingredients (survival rules).
         consume(inv, templateItem);
         consume(inv, ingredientItem);
 
         ItemStack result = armor.copyWithCount(1);
-        result.set(DataComponentTypes.TRIM, new ArmorTrim(material, pattern));
+        result.set(DataComponents.TRIM, new ArmorTrim(material, pattern));
 
-        output.setStack(0, result);
-        input.setStack(0, ItemStack.EMPTY);
-        inv.markDirty();
-        sendContentUpdates();
+        output.setItem(0, result);
+        input.setItem(0, ItemStack.EMPTY);
+        inv.setChanged();
+        broadcastChanges();
     }
 
-    private static void consume(PlayerInventory inv, Item item) {
-        for (int i = 0; i < inv.size(); i++) {
-            ItemStack stack = inv.getStack(i);
-            if (stack.isOf(item)) {
-                stack.decrement(1);
+    private static void consume(Inventory inv, Item item) {
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack.is(item)) {
+                stack.shrink(1);
                 return;
             }
         }
     }
 
     @Override
-    public ItemStack quickMove(PlayerEntity player, int index) {
+    public ItemStack quickMoveStack(Player player, int index) {
         ItemStack result = ItemStack.EMPTY;
-        Slot slot = slots.get(index);
-        if (!slot.hasStack()) {
+        Slot slot = this.slots.get(index);
+        if (!slot.hasItem()) {
             return result;
         }
 
-        ItemStack stack = slot.getStack();
+        ItemStack stack = slot.getItem();
         result = stack.copy();
 
         if (index <= OUTPUT_SLOT) {
             // From menu slots to player inventory (slots 2..37).
-            if (!insertItem(stack, 2, 38, true)) {
+            if (!this.moveItemStackTo(stack, 2, 38, true)) {
                 return ItemStack.EMPTY;
             }
         } else {
             // From player inventory into the armor input, if trimmable.
-            if (stack.isIn(ItemTags.TRIMMABLE_ARMOR)) {
-                if (!insertItem(stack, ARMOR_SLOT, ARMOR_SLOT + 1, false)) {
+            if (stack.is(ItemTags.TRIMMABLE_ARMOR)) {
+                if (!this.moveItemStackTo(stack, ARMOR_SLOT, ARMOR_SLOT + 1, false)) {
                     return ItemStack.EMPTY;
                 }
             } else {
@@ -138,26 +138,26 @@ public class TrimPreviewMenu extends ScreenHandler {
         }
 
         if (stack.isEmpty()) {
-            slot.setStack(ItemStack.EMPTY);
+            slot.set(ItemStack.EMPTY);
         } else {
-            slot.markDirty();
+            slot.setChanged();
         }
         if (index == OUTPUT_SLOT) {
-            slot.onTakeItem(player, stack);
+            slot.onTake(player, stack);
         }
         return result;
     }
 
     @Override
-    public void onClosed(PlayerEntity player) {
-        super.onClosed(player);
+    public void removed(Player player) {
+        super.removed(player);
         // Return anything still sitting in the menu slots.
-        dropInventory(player, input);
-        dropInventory(player, output);
+        clearContainer(player, input);
+        clearContainer(player, output);
     }
 
     @Override
-    public boolean canUse(PlayerEntity player) {
+    public boolean stillValid(Player player) {
         return true;
     }
 }

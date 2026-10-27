@@ -6,62 +6,62 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.block.Blocks;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.screen.ScreenHandlerType;
-import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.FeatureSet;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.flag.FeatureFlagSet;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.level.block.Blocks;
 
 public class TrimPreviewMod implements ModInitializer {
     public static final String MOD_ID = "trimpreview";
 
-    public static final ScreenHandlerType<TrimPreviewMenu> MENU_TYPE = Registry.register(
-            Registries.SCREEN_HANDLER,
-            Identifier.of(MOD_ID, "trim_preview"),
-            new ScreenHandlerType<>(TrimPreviewMenu::new, FeatureSet.empty()));
+    public static final MenuType<TrimPreviewMenu> MENU_TYPE = Registry.register(
+            BuiltInRegistries.MENU,
+            Identifier.fromNamespaceAndPath(MOD_ID, "trim_preview"),
+            new MenuType<>(TrimPreviewMenu::new, FeatureFlagSet.of()));
 
     @Override
     public void onInitialize() {
         // Payload types must be registered on both sides before use.
-        PayloadTypeRegistry.playC2S().register(Payloads.OpenMenu.ID, Payloads.OpenMenu.CODEC);
-        PayloadTypeRegistry.playC2S().register(Payloads.ApplyTrim.ID, Payloads.ApplyTrim.CODEC);
+        PayloadTypeRegistry.playC2S().register(Payloads.OpenMenu.TYPE, Payloads.OpenMenu.CODEC);
+        PayloadTypeRegistry.playC2S().register(Payloads.ApplyTrim.TYPE, Payloads.ApplyTrim.CODEC);
 
-        ServerPlayNetworking.registerGlobalReceiver(Payloads.OpenMenu.ID, (payload, ctx) ->
-                ctx.server().execute(() -> openMenu(ctx.player())));
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.OpenMenu.TYPE, (payload, context) ->
+                context.server().execute(() -> openMenu(context.player())));
 
-        ServerPlayNetworking.registerGlobalReceiver(Payloads.ApplyTrim.ID, (payload, ctx) ->
-                ctx.server().execute(() -> {
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.ApplyTrim.TYPE, (payload, context) ->
+                context.server().execute(() -> {
                     // Only act if the player actually has our menu open.
-                    if (ctx.player().currentScreenHandler instanceof TrimPreviewMenu menu) {
-                        menu.applyTrim(ctx.player(), payload.pattern(), payload.material());
+                    if (context.player().containerMenu instanceof TrimPreviewMenu menu) {
+                        menu.applyTrim(context.player(), payload.pattern(), payload.material());
                     }
                 }));
 
         // Sneak + right-click a smithing table opens the preview.
         // Plain right-click is untouched, so vanilla smithing still works.
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            if (world.isClient() || hand != Hand.MAIN_HAND || !player.isSneaking()) {
-                return ActionResult.PASS;
+            if (world.isClientSide() || hand != InteractionHand.MAIN_HAND || !player.isShiftKeyDown()) {
+                return InteractionResult.PASS;
             }
             BlockPos pos = hit.getBlockPos();
-            if (!world.getBlockState(pos).isOf(Blocks.SMITHING_TABLE)) {
-                return ActionResult.PASS;
+            if (!world.getBlockState(pos).is(Blocks.SMITHING_TABLE)) {
+                return InteractionResult.PASS;
             }
-            openMenu((ServerPlayerEntity) player);
-            return ActionResult.SUCCESS;
+            openMenu((ServerPlayer) player);
+            return InteractionResult.SUCCESS;
         });
     }
 
-    public static void openMenu(ServerPlayerEntity player) {
-        player.openHandledScreen(new SimpleNamedScreenHandlerFactory(
+    public static void openMenu(ServerPlayer player) {
+        player.openMenu(new SimpleMenuProvider(
                 (syncId, inv, p) -> new TrimPreviewMenu(syncId, inv),
-                Text.translatable("screen." + MOD_ID + ".title")));
+                Component.translatable("screen." + MOD_ID + ".title")));
     }
 }
