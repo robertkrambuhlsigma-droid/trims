@@ -72,6 +72,8 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
         Holder<TrimMaterial> material = registries.lookupOrThrow(Registries.TRIM_MATERIAL)
                 .get(ResourceKey.create(Registries.TRIM_MATERIAL, materialId)).orElse(null);
         if (pattern == null || material == null) {
+            player.sendSystemMessage(Component.literal("[Trim] Unknown pattern or material: "
+                    + patternId + " / " + materialId));
             return; // Unknown or removed registry entry.
         }
 
@@ -96,6 +98,8 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
         input.setItem(0, result);
         inv.setChanged();
         broadcastChanges();
+        player.sendSystemMessage(Component.literal("[Trim] Applied " + patternId.getPath()
+                + " with " + materialId.getPath() + "."));
     }
 
     private static void consume(Inventory inv, Item item) {
