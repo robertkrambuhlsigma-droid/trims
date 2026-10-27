@@ -8,17 +8,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -36,21 +34,19 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
     private static final int H = 256;
 
     private enum Piece {
-        HELMET("helmet", EquipmentSlot.HEAD),
-        CHESTPLATE("chestplate", EquipmentSlot.CHEST),
-        LEGGINGS("leggings", EquipmentSlot.LEGS),
-        BOOTS("boots", EquipmentSlot.FEET);
+        HELMET("helmet"),
+        CHESTPLATE("chestplate"),
+        LEGGINGS("leggings"),
+        BOOTS("boots");
 
         final String suffix;
-        final EquipmentSlot slot;
 
-        Piece(String suffix, EquipmentSlot slot) {
+        Piece(String suffix) {
             this.suffix = suffix;
-            this.slot = slot;
         }
 
         Item itemFor(Tier tier) {
-            return net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
+            return BuiltInRegistries.ITEM.getValue(
                     Identifier.fromNamespaceAndPath("minecraft", tier.prefix + "_" + suffix));
         }
     }
@@ -76,8 +72,8 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
     private Piece selectedPiece = Piece.CHESTPLATE;
     private Tier selectedTier = Tier.DIAMOND;
 
-    /** The 3D preview: an armor stand wearing the full selected set. Client-side only. */
-    private ArmorStand previewStand;
+    /** Trimmed helmet, chest, legs and boots, drawn stacked as a preview of the full set. */
+    private final List<ItemStack> previewPieces = new ArrayList<>();
 
     public TrimPreviewScreen(TrimPreviewMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -146,10 +142,6 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
                 .bounds(leftPos + 190, topPos + 146, 52, 18)
                 .build());
 
-        previewStand = new ArmorStand(Minecraft.getInstance().level, 0, 0, 0);
-        // The stand never joins the world, so give it an ID by hand or the renderer crashes.
-        previewStand.setId(Integer.MAX_VALUE - 1000);
-        previewStand.setShowArms(true);
         refreshPreview();
     }
 
@@ -161,15 +153,16 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
                 .build());
     }
 
-    /** Re-dresses the preview stand whenever a selection changes. */
+    /** Rebuilds the four preview pieces whenever a selection changes. */
     private void refreshPreview() {
-        if (minecraft == null || minecraft.level == null || previewStand == null) return;
+        if (minecraft == null || minecraft.level == null) return;
         RegistryAccess registries = minecraft.level.registryAccess();
         Holder<TrimPattern> pattern = lookup(registries, Registries.TRIM_PATTERN, selectedPattern);
         Holder<TrimMaterial> material = lookup(registries, Registries.TRIM_MATERIAL, selectedMaterial);
 
+        previewPieces.clear();
         for (Piece p : Piece.values()) {
-            previewStand.setItemSlot(p.slot, trimmed(p.itemFor(selectedTier), pattern, material));
+            previewPieces.add(trimmed(p.itemFor(selectedTier), pattern, material));
         }
     }
 
@@ -197,12 +190,11 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
             graphics.item(cell.icon(), cell.x() + 1, cell.y() + 1);
         }
 
-        // 3D armor stand preview, drawn in its own panel at the top-left.
+        // Preview panel: the four trimmed pieces stacked top to bottom, like a worn set.
         graphics.fill(leftPos + 36, topPos + 16, leftPos + 116, topPos + 116, 0xFF181818);
-        if (previewStand != null) {
-            InventoryScreen.extractEntityInInventoryFollowsMouse(graphics,
-                    leftPos + 36, topPos + 16, leftPos + 116, topPos + 116,
-                    28, 0.0625F, mouseX, mouseY, previewStand);
+        int[] ys = {20, 44, 66, 88};
+        for (int i = 0; i < previewPieces.size() && i < ys.length; i++) {
+            graphics.item(previewPieces.get(i), leftPos + 60, topPos + ys[i]);
         }
 
         graphics.text(this.font,
