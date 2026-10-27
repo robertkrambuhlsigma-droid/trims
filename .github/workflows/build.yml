@@ -31,6 +31,7 @@ jobs:
       - name: Dump trim API (debug)
         if: always()
         run: |
+          set +e
           find ~/.gradle -name "*.jar" | while read j; do
             if unzip -l "$j" 2>/dev/null | grep -q 'equipment/trim/TrimPattern.class'; then
               echo "== $j"

@@ -8,16 +8,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -35,19 +36,21 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
     private static final int H = 256;
 
     private enum Piece {
-        HELMET("helmet"),
-        CHESTPLATE("chestplate"),
-        LEGGINGS("leggings"),
-        BOOTS("boots");
+        HELMET("helmet", EquipmentSlot.HEAD),
+        CHESTPLATE("chestplate", EquipmentSlot.CHEST),
+        LEGGINGS("leggings", EquipmentSlot.LEGS),
+        BOOTS("boots", EquipmentSlot.FEET);
 
         final String suffix;
+        final EquipmentSlot slot;
 
-        Piece(String suffix) {
+        Piece(String suffix, EquipmentSlot slot) {
             this.suffix = suffix;
+            this.slot = slot;
         }
 
         Item itemFor(Tier tier) {
-            return BuiltInRegistries.ITEM.getValue(
+            return net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
                     Identifier.fromNamespaceAndPath("minecraft", tier.prefix + "_" + suffix));
         }
     }
@@ -72,17 +75,18 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
     private Identifier selectedMaterial;
     private Piece selectedPiece = Piece.CHESTPLATE;
     private Tier selectedTier = Tier.DIAMOND;
-    private ItemStack previewIcon = ItemStack.EMPTY;
+
+    /** The 3D preview: an armor stand wearing the full selected set. Client-side only. */
+    private ArmorStand previewStand;
 
     public TrimPreviewScreen(TrimPreviewMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
-        this.inventoryLabelY = 160;
     }
 
     @Override
     protected void init() {
         super.init();
-        RegistryAccess registries = minecraft.level.registryAccess();
+        RegistryAccess registries = Minecraft.getInstance().level.registryAccess();
 
         // Pull everything from the registry, including data pack additions.
         patterns.clear();
@@ -101,10 +105,8 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
         for (int i = 0; i < patterns.size(); i++) {
             Identifier id = patterns.get(i);
             int col = i % 4, row = i / 4;
-            Holder<TrimPattern> entry = lookup(registries, Registries.TRIM_PATTERN, id);
-            ItemStack icon = entry == null ? new ItemStack(Items.BARRIER)
-                    : TrimItems.templateFor(id).getDefaultInstance();
-            addCell(leftPos + 136 + col * 18, topPos + 18 + row * 18, icon,
+            addCell(leftPos + 136 + col * 18, topPos + 18 + row * 18,
+                    TrimItems.templateFor(id).getDefaultInstance(),
                     () -> id.equals(selectedPattern),
                     () -> { selectedPattern = id; refreshPreview(); });
         }
@@ -113,10 +115,8 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
         for (int i = 0; i < materials.size(); i++) {
             Identifier id = materials.get(i);
             int col = i % 5, row = i / 5;
-            Holder<TrimMaterial> entry = lookup(registries, Registries.TRIM_MATERIAL, id);
-            ItemStack icon = entry == null ? new ItemStack(Items.BARRIER)
-                    : TrimItems.ingredientFor(id).getDefaultInstance();
-            addCell(leftPos + 10 + col * 18, topPos + 124 + row * 18, icon,
+            addCell(leftPos + 10 + col * 18, topPos + 124 + row * 18,
+                    TrimItems.ingredientFor(id).getDefaultInstance(),
                     () -> id.equals(selectedMaterial),
                     () -> { selectedMaterial = id; refreshPreview(); });
         }
@@ -146,6 +146,8 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
                 .bounds(leftPos + 190, topPos + 146, 52, 18)
                 .build());
 
+        previewStand = new ArmorStand(Minecraft.getInstance().level, 0, 0, 0);
+        previewStand.setShowArms(true);
         refreshPreview();
     }
 
@@ -157,17 +159,19 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
                 .build());
     }
 
-    /** Rebuilds the preview icon whenever a selection changes. */
+    /** Re-dresses the preview stand whenever a selection changes. */
     private void refreshPreview() {
-        if (minecraft == null || minecraft.level == null) return;
+        if (minecraft == null || minecraft.level == null || previewStand == null) return;
         RegistryAccess registries = minecraft.level.registryAccess();
         Holder<TrimPattern> pattern = lookup(registries, Registries.TRIM_PATTERN, selectedPattern);
         Holder<TrimMaterial> material = lookup(registries, Registries.TRIM_MATERIAL, selectedMaterial);
-        previewIcon = trimmed(selectedPiece.itemFor(selectedTier), pattern, material);
+
+        for (Piece p : Piece.values()) {
+            previewStand.setItemSlot(p.slot, trimmed(p.itemFor(selectedTier), pattern, material));
+        }
     }
 
-    private static ItemStack trimmed(Item item, Holder<TrimPattern> pattern,
-                                     Holder<TrimMaterial> material) {
+    private static ItemStack trimmed(Item item, Holder<TrimPattern> pattern, Holder<TrimMaterial> material) {
         ItemStack stack = new ItemStack(item);
         if (pattern != null && material != null) {
             stack.set(DataComponents.TRIM, new ArmorTrim(material, pattern));
@@ -191,11 +195,18 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
             graphics.item(cell.icon(), cell.x() + 1, cell.y() + 1);
         }
 
-        graphics.item(previewIcon, leftPos + 10, topPos + 96);
+        // 3D armor stand preview, drawn in its own panel at the top-left.
+        graphics.fill(leftPos + 36, topPos + 16, leftPos + 116, topPos + 116, 0xFF181818);
+        if (previewStand != null) {
+            InventoryScreen.extractEntityInInventoryFollowsMouse(graphics,
+                    leftPos + 36, topPos + 16, leftPos + 116, topPos + 116,
+                    28, 0.0625F, mouseX, mouseY, previewStand);
+        }
+
         graphics.text(this.font,
-                selectedPattern == null ? "" : selectedPattern.getPath() + " / "
+                (selectedPattern == null ? "" : selectedPattern.getPath()) + " / "
                         + (selectedMaterial == null ? "" : selectedMaterial.getPath()),
-                leftPos + 10, topPos + 232 - 20, 0xFFFFFFFF, true);
+                leftPos + 10, topPos + 212, 0xFFFFFFFF, true);
     }
 
     private static void outline(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
