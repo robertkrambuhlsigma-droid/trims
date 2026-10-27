@@ -29,7 +29,7 @@ jobs:
           path: build/libs/trimpreview-1.0.0.jar
 
       - name: Dump trim API (debug)
-        if: failure()
+        if: always()
         run: |
           find ~/.gradle -name "*.jar" | while read j; do
             if unzip -l "$j" 2>/dev/null | grep -q 'equipment/trim/TrimPattern.class'; then
