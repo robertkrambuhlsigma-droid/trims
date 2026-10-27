@@ -1,5 +1,6 @@
 package com.example.trimpreview.menu;
 
+import com.example.trimpreview.TrimItems;
 import com.example.trimpreview.TrimPreviewMod;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -78,8 +79,8 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
         }
 
         // Ingredient items come from the registry, so data pack entries work with no code changes.
-        Item templateItem = pattern.value().templateItem().value();
-        Item ingredientItem = material.value().ingredient().value();
+        Item templateItem = TrimItems.templateFor(patternId);
+        Item ingredientItem = TrimItems.ingredientFor(materialId);
 
         var inv = player.getInventory();
         if (inv.countItem(templateItem) < 1 || inv.countItem(ingredientItem) < 1) {

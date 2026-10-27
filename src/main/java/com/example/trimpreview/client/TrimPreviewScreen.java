@@ -1,5 +1,6 @@
 package com.example.trimpreview.client;
 
+import com.example.trimpreview.TrimItems;
 import com.example.trimpreview.menu.TrimPreviewMenu;
 import com.example.trimpreview.network.Payloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -102,7 +103,7 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
             int col = i % 4, row = i / 4;
             Holder<TrimPattern> entry = lookup(registries, Registries.TRIM_PATTERN, id);
             ItemStack icon = entry == null ? new ItemStack(Items.BARRIER)
-                    : entry.value().templateItem().value().getDefaultInstance();
+                    : TrimItems.templateFor(id).getDefaultInstance();
             addCell(leftPos + 136 + col * 18, topPos + 18 + row * 18, icon,
                     () -> id.equals(selectedPattern),
                     () -> { selectedPattern = id; refreshPreview(); });
@@ -114,7 +115,7 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
             int col = i % 5, row = i / 5;
             Holder<TrimMaterial> entry = lookup(registries, Registries.TRIM_MATERIAL, id);
             ItemStack icon = entry == null ? new ItemStack(Items.BARRIER)
-                    : entry.value().ingredient().value().getDefaultInstance();
+                    : TrimItems.ingredientFor(id).getDefaultInstance();
             addCell(leftPos + 10 + col * 18, topPos + 124 + row * 18, icon,
                     () -> id.equals(selectedMaterial),
                     () -> { selectedMaterial = id; refreshPreview(); });
