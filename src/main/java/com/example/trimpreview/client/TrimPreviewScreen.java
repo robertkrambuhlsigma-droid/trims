@@ -147,6 +147,8 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
                 .build());
 
         previewStand = new ArmorStand(Minecraft.getInstance().level, 0, 0, 0);
+        // The stand never joins the world, so give it an ID by hand or the renderer crashes.
+        previewStand.setId(Integer.MAX_VALUE - 1000);
         previewStand.setShowArms(true);
         refreshPreview();
     }
