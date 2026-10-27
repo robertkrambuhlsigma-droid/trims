@@ -30,8 +30,8 @@ public class TrimPreviewMod implements ModInitializer {
     @Override
     public void onInitialize() {
         // Payload types must be registered on both sides before use.
-        PayloadTypeRegistry.playC2S().register(Payloads.OpenMenu.TYPE, Payloads.OpenMenu.CODEC);
-        PayloadTypeRegistry.playC2S().register(Payloads.ApplyTrim.TYPE, Payloads.ApplyTrim.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Payloads.OpenMenu.TYPE, Payloads.OpenMenu.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Payloads.ApplyTrim.TYPE, Payloads.ApplyTrim.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(Payloads.OpenMenu.TYPE, (payload, context) ->
                 context.server().execute(() -> openMenu(context.player())));

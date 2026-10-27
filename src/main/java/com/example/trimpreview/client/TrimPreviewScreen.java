@@ -22,8 +22,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.equipment.trim.ArmorTrim;
-import net.minecraft.world.item.equipment.trim.ArmorTrimMaterial;
-import net.minecraft.world.item.equipment.trim.ArmorTrimPattern;
+import net.minecraft.world.item.equipment.trim.TrimMaterial;
+import net.minecraft.world.item.equipment.trim.TrimPattern;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,8 +75,6 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
 
     public TrimPreviewScreen(TrimPreviewMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
-        this.imageWidth = W;
-        this.imageHeight = H;
         this.inventoryLabelY = 160;
     }
 
@@ -88,10 +86,10 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
         // Pull everything from the registry, including data pack additions.
         patterns.clear();
         registries.lookupOrThrow(Registries.TRIM_PATTERN).listElementIds()
-                .map(ResourceKey::location).sorted().forEach(patterns::add);
+                .map(ResourceKey::identifier).sorted().forEach(patterns::add);
         materials.clear();
         registries.lookupOrThrow(Registries.TRIM_MATERIAL).listElementIds()
-                .map(ResourceKey::location).sorted().forEach(materials::add);
+                .map(ResourceKey::identifier).sorted().forEach(materials::add);
 
         if (selectedPattern == null && !patterns.isEmpty()) selectedPattern = patterns.get(0);
         if (selectedMaterial == null && !materials.isEmpty()) selectedMaterial = materials.get(0);
@@ -102,7 +100,7 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
         for (int i = 0; i < patterns.size(); i++) {
             Identifier id = patterns.get(i);
             int col = i % 4, row = i / 4;
-            Holder<ArmorTrimPattern> entry = lookup(registries, Registries.TRIM_PATTERN, id);
+            Holder<TrimPattern> entry = lookup(registries, Registries.TRIM_PATTERN, id);
             ItemStack icon = entry == null ? new ItemStack(Items.BARRIER)
                     : entry.value().templateItem().value().getDefaultInstance();
             addCell(leftPos + 136 + col * 18, topPos + 18 + row * 18, icon,
@@ -114,7 +112,7 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
         for (int i = 0; i < materials.size(); i++) {
             Identifier id = materials.get(i);
             int col = i % 5, row = i / 5;
-            Holder<ArmorTrimMaterial> entry = lookup(registries, Registries.TRIM_MATERIAL, id);
+            Holder<TrimMaterial> entry = lookup(registries, Registries.TRIM_MATERIAL, id);
             ItemStack icon = entry == null ? new ItemStack(Items.BARRIER)
                     : entry.value().ingredient().value().getDefaultInstance();
             addCell(leftPos + 10 + col * 18, topPos + 124 + row * 18, icon,
@@ -162,13 +160,13 @@ public class TrimPreviewScreen extends AbstractContainerScreen<TrimPreviewMenu> 
     private void refreshPreview() {
         if (minecraft == null || minecraft.level == null) return;
         RegistryAccess registries = minecraft.level.registryAccess();
-        Holder<ArmorTrimPattern> pattern = lookup(registries, Registries.TRIM_PATTERN, selectedPattern);
-        Holder<ArmorTrimMaterial> material = lookup(registries, Registries.TRIM_MATERIAL, selectedMaterial);
+        Holder<TrimPattern> pattern = lookup(registries, Registries.TRIM_PATTERN, selectedPattern);
+        Holder<TrimMaterial> material = lookup(registries, Registries.TRIM_MATERIAL, selectedMaterial);
         previewIcon = trimmed(selectedPiece.itemFor(selectedTier), pattern, material);
     }
 
-    private static ItemStack trimmed(Item item, Holder<ArmorTrimPattern> pattern,
-                                     Holder<ArmorTrimMaterial> material) {
+    private static ItemStack trimmed(Item item, Holder<TrimPattern> pattern,
+                                     Holder<TrimMaterial> material) {
         ItemStack stack = new ItemStack(item);
         if (pattern != null && material != null) {
             stack.set(DataComponents.TRIM, new ArmorTrim(material, pattern));

@@ -13,12 +13,12 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.inventory.SimpleContainer;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.equipment.trim.ArmorTrim;
-import net.minecraft.world.item.equipment.trim.ArmorTrimMaterial;
-import net.minecraft.world.item.equipment.trim.ArmorTrimPattern;
+import net.minecraft.world.item.equipment.trim.TrimMaterial;
+import net.minecraft.world.item.equipment.trim.TrimPattern;
 
 public class TrimPreviewMenu extends AbstractContainerMenu {
     public static final int ARMOR_SLOT = 0;
@@ -61,7 +61,7 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
     public void applyTrim(ServerPlayer player, Identifier patternId, Identifier materialId) {
         ItemStack armor = input.getItem(0);
         if (armor.isEmpty()) {
-            player.displayClientMessage(Component.translatable("message.trimpreview.no_armor"), true);
+            player.sendSystemMessage(Component.translatable("message.trimpreview.no_armor"), true);
             return;
         }
         if (!output.getItem(0).isEmpty()) {
@@ -69,9 +69,9 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
         }
 
         var registries = player.level().registryAccess();
-        Holder<ArmorTrimPattern> pattern = registries.lookupOrThrow(Registries.TRIM_PATTERN)
+        Holder<TrimPattern> pattern = registries.lookupOrThrow(Registries.TRIM_PATTERN)
                 .get(ResourceKey.create(Registries.TRIM_PATTERN, patternId)).orElse(null);
-        Holder<ArmorTrimMaterial> material = registries.lookupOrThrow(Registries.TRIM_MATERIAL)
+        Holder<TrimMaterial> material = registries.lookupOrThrow(Registries.TRIM_MATERIAL)
                 .get(ResourceKey.create(Registries.TRIM_MATERIAL, materialId)).orElse(null);
         if (pattern == null || material == null) {
             return; // Unknown or removed registry entry.
@@ -83,7 +83,7 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
 
         var inv = player.getInventory();
         if (inv.countItem(templateItem) < 1 || inv.countItem(ingredientItem) < 1) {
-            player.displayClientMessage(Component.translatable("message.trimpreview.missing"), true);
+            player.sendSystemMessage(Component.translatable("message.trimpreview.missing"), true);
             return;
         }
 
