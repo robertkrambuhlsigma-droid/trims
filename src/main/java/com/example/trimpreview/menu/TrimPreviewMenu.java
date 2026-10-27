@@ -4,6 +4,7 @@ import com.example.trimpreview.TrimItems;
 import com.example.trimpreview.TrimPreviewMod;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -35,7 +36,7 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
         addSlot(new Slot(input, 0, 10, 18) {
             @Override
             public boolean mayPlace(ItemStack stack) {
-                return stack.is(ItemTags.TRIMMABLE_ARMOR);
+                return isTrimmableArmor(stack);
             }
         });
 
@@ -61,6 +62,10 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
      */
     public void applyTrim(ServerPlayer player, Identifier patternId, Identifier materialId) {
         ItemStack armor = input.getItem(0);
+        if (!armor.isEmpty() && !isTrimmableArmor(armor)) {
+            player.sendSystemMessage(Component.literal("[Trim] That item can't be trimmed."));
+            return;
+        }
         if (armor.isEmpty()) {
             player.sendSystemMessage(Component.translatable("message.trimpreview.no_armor"));
             return;
@@ -102,6 +107,24 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
                 + " with " + materialId.getPath() + "."));
     }
 
+    /**
+     * True for armor that can take a trim. Checks the vanilla trimmable-armor tag first,
+     * then falls back to vanilla armor names so a changed or missing tag can't block it.
+     */
+    public static boolean isTrimmableArmor(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        if (stack.is(ItemTags.TRIMMABLE_ARMOR)) {
+            return true;
+        }
+        Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        String path = id.getPath();
+        return id.getNamespace().equals("minecraft")
+                && (path.endsWith("_helmet") || path.endsWith("_chestplate")
+                    || path.endsWith("_leggings") || path.endsWith("_boots"));
+    }
+
     private static void consume(Inventory inv, Item item) {
         for (int i = 0; i < inv.getContainerSize(); i++) {
             ItemStack stack = inv.getItem(i);
@@ -130,7 +153,7 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
             }
         } else {
             // From player inventory into the armor input, if trimmable.
-            if (stack.is(ItemTags.TRIMMABLE_ARMOR)) {
+            if (isTrimmableArmor(stack)) {
                 if (!this.moveItemStackTo(stack, ARMOR_SLOT, ARMOR_SLOT + 1, false)) {
                     return ItemStack.EMPTY;
                 }
