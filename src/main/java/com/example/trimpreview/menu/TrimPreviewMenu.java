@@ -61,7 +61,7 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
     public void applyTrim(ServerPlayer player, Identifier patternId, Identifier materialId) {
         ItemStack armor = input.getItem(0);
         if (armor.isEmpty()) {
-            player.sendSystemMessage(Component.translatable("message.trimpreview.no_armor"), true);
+            player.sendSystemMessage(Component.translatable("message.trimpreview.no_armor"));
             return;
         }
         if (!output.getItem(0).isEmpty()) {
@@ -83,7 +83,7 @@ public class TrimPreviewMenu extends AbstractContainerMenu {
 
         var inv = player.getInventory();
         if (inv.countItem(templateItem) < 1 || inv.countItem(ingredientItem) < 1) {
-            player.sendSystemMessage(Component.translatable("message.trimpreview.missing"), true);
+            player.sendSystemMessage(Component.translatable("message.trimpreview.missing"));
             return;
         }
 
